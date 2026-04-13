@@ -2,6 +2,10 @@
 
 > **实时流式克隆 · 全参数精调 · OpenAI 兼容 API · 专业可视化工作台**
 
+<p align="center">
+  <img src="Qwen3-TTS-X.png" alt="Qwen3-TTS-X Studio" width="100%">
+</p>
+
 基于 Qwen3-TTS 开源模型架构深度优化的本地 TTS 底座仓库。通过 GGUF 量化 + ONNX 混合推理管线，在消费级 GPU 上实现**低于 300ms 首音延迟**的真流式语音合成。目前已实现**后端驱动与前端展示的一体化整合**，通过单一启动文件同时提供兼容 OpenAI 标准的 HTTP API 和支持全链路参数实时调节的专业 Web 工作台。
 
 _(本项目持续更新发布于 [shumox.com](https://shumox.com) 官方主页)_
