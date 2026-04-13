@@ -121,15 +121,18 @@ graph TD
 
 ## 项目结构
 
+> [!IMPORTANT]
+> **资产下载**：请前往 [本仓库 Releases](https://github.com/llrrdb/Qwen3-TTS-X/releases) 下载 `model-base.zip`，解压后将其中的模型资产放入下方的 `model-base/` 目录中。
+
 ```text
 📦 qwen3-tts-x/
- ┣ 📂 model-base/                  # 模型权重目录，到[本仓库Releases](https://github.com/llrrdb/Qwen3-TTS-X/releases)下载后把模型放这里
+ ┣ 📂 model-base/                  # 核心模型权重目录（下载资产后放置于此）
  ┣ 📂 qwen3_tts_gguf/              # 底层推理引擎核心代码
  ┃  ┗ 📂 inference/
- ┃     ┣ 📂 bin/                    # 从 llama.cpp Releases 下载预编译二进制，将 DLL 放入
+ ┃     ┣ 📂 bin/                    # 运行环境 DLL 二进制目录
  ┣ 📂 example_audio/               # 音色素材库（Studio 自动扫描）
  ┣ 📂 output/                      # 合成输出目录
- ┃  ┣ 📂 studio_history/            #   └ Studio 生成历史落盘
+ ┃  ┣ 📂 studio_history/            #   └ Studio 生成历史记录
  ┃  ┣ 📂 clone/                     #   └ Clone 模式输出
  ┣ 📜 Qwen3-TTS-X.py               # ★ 一体化核心服务程序（含 Web UI + API）
  ┣ 📜 studio.html                  #   └ Studio 前端工作台界面
