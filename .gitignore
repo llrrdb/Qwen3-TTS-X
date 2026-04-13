@@ -2,6 +2,8 @@
 model-base/
 qwen3_tts_gguf/inference/bin/*
 !qwen3_tts_gguf/inference/bin/*.txt
+model-base.zip
+backup/
 
 # ======= 运行输出与历史记录 =======
 output/

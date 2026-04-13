@@ -123,7 +123,7 @@ graph TD
 
 ```text
 📦 qwen3-tts-x/
- ┣ 📂 model-base/                  # 模型权重目录，下载后把模型放这里
+ ┣ 📂 model-base/                  # 模型权重目录，到[本仓库Releases](https://github.com/llrrdb/Qwen3-TTS-X/releases)下载后把模型放这里
  ┣ 📂 qwen3_tts_gguf/              # 底层推理引擎核心代码
  ┃  ┗ 📂 inference/
  ┃     ┣ 📂 bin/                    # 从 llama.cpp Releases 下载预编译二进制，将 DLL 放入
@@ -170,7 +170,7 @@ graph TD
 
 ```bash
 # 1. 克隆项目
-git clone https://git.aoun.ltd/llrrdb/qwen3tts-x && cd qwen3tts-x
+git clone https://github.com/llrrdb/Qwen3-TTS-X && cd Qwen3-TTS-X
 
 # 2. 从官方安装 uv (如果你还未安装)
 pip install uv
