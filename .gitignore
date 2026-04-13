@@ -1,0 +1,43 @@
+# ======= 核心模型权重与二进制文件 (体积巨大，严禁提交) =======
+model-base/
+qwen3_tts_gguf/inference/bin/
+
+# ======= 运行输出与历史记录 =======
+output/
+log/
+
+# ======= 用户音色素材库 =======
+example_audio/
+
+# ======= Python 标准忽略 =======
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# ======= 操作系统与 IDE =======
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ======= 临时音频与资源文件 (排除测试脚本) =======
+*.wav
+*.mp3
+*.flac
+*.m4a
+*.json
+
+# 忽略特定的本地测试脚本
+Inference-Base.py
+41-Inference-Custom.py
+42-Inference-Design.py
+qwen3_tts_gguf
+
+# 排除例外：保留关键配置
+!tokenizer.json
+!requirements.txt
+!package.json
+!studio.html

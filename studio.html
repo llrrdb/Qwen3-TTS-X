@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Qwen3-TTS-X | Next-Gen AI 音频工作台</title>
+    <script src="/static/js/wavesurfer.min.js"></script>
+    <style>
+        :root {
+            --bg-grad-1: #e0eafc;
+            --bg-grad-2: #cfdef3;
+            --panel-bg: rgba(255, 255, 255, 0.65);
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --glass-border: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+            --hover-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            --radius-main: 16px;
+            --radius-sm: 8px;
+        }
+        body {
+            margin: 0; padding: 0;
+            background: linear-gradient(135deg, var(--bg-grad-1) 0%, var(--bg-grad-2) 100%);
+            color: var(--text-main);
+            font-family: 'PingFang SC', 'MiSans', 'Microsoft YaHei', -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 顶部 Header */
+        .header {
+            padding: 12px 30px;
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 1px 1px rgba(0,0,0,0.02);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+        .header h1 {
+            margin: 0; font-size: 1.5rem; color: #0f172a; display: flex; align-items: baseline; gap: 12px; font-weight: 600;
+        }
+        .header h1 span { font-size: 1.3rem; font-weight: 400; color: var(--text-muted); letter-spacing: 0.5px;}
+        .header a { color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.85rem;}
+
+        /* Main Workspace */
+        .workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            padding: 20px;
+            gap: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Layout */
+        .sidebar {
+            width: 480px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-radius: var(--radius-main);
+            box-shadow: var(--glass-shadow), var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* Sidebar Components */
+        h2 { font-size: 1.05rem; margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid rgba(0,0,0,0.04); padding-bottom: 10px; color: #334155; font-weight: 600; }
+        .example-list { flex: 1; overflow-y: auto; margin-bottom: 10px; padding-right: 8px;}
+        
+        .example-item {
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            margin-bottom: 12px;
+            display: grid;
+            grid-template-columns: 54px 1fr 85px;
+            grid-template-rows: auto auto;
+            gap: 6px 15px;
+            align-items: flex-start;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.01);
+            cursor: pointer;
+        }
+        .example-item:hover { background: rgba(255, 255, 255, 0.7); transform: translateY(-2px); box-shadow: inset 0 0 0 1px rgba(255,255,255,1), var(--hover-shadow); }
+        .example-item.selected { 
+            background: linear-gradient(120deg, #f0f9ff 0%, #e0f2fe 100%);
+            box-shadow: inset 0 0 0 1.5px var(--primary), 0 4px 12px rgba(2, 132, 199, 0.1); 
+        }
+        
+        .ex-avatar-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            width: 54px;
+            grid-row: span 2;
+        }
+        .ex-img { width: 46px; height: 46px; border-radius: 8px; object-fit: cover; background: rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05); }
+        .ex-audio-col { display: flex; flex-direction: column; gap: 0; overflow: hidden; justify-content: center; height: 38px; }
+        
+        .ex-name { font-weight: 600; font-size: 0.75rem; text-align: center; color: #0f172a; width: 100%; word-break: break-all; line-height: 1.1; }
+        .ex-ref { font-size: 0.75rem; color: #334155; background: rgba(255,255,255,0.7); border: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06); border-radius: 6px; padding: 4px 8px; outline: none; width: 100%; box-sizing: border-box; transition: all 0.2s; font-family: inherit; grid-column: 2 / span 2; margin-top: 2px; }
+        .ex-ref:focus { box-shadow: inset 0 0 0 1.5px var(--primary); background:#fff; }
+        
+        /* Actions */
+        .ex-actions { display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: flex-start; width: 85px; }
+        .json-badge { font-size: 0.7rem; color: #059669; font-weight: 600; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 4px 6px; border-radius: 4px; width: 100%; text-align: center; box-sizing: border-box; box-shadow: 0 1px 2px rgba(16,185,129,0.05); }
+        
+        /* 主操作按钮 - 仅用于合成按钮等主要操作 */
+        .btn-main {
+            background: var(--primary); color: white; border: none; padding: 10px 24px;
+            border-radius: var(--radius-sm); cursor: pointer; font-weight: 600;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); letter-spacing: 0.5px;
+            font-family: inherit; box-shadow: 0 4px 10px rgba(2,132,199,0.2);
+        }
+        .btn-main:hover { background: var(--primary-hover); box-shadow: 0 6px 15px rgba(2,132,199,0.3); transform: translateY(-1px);}
+        .btn-main:active { transform: scale(0.97); }
+        .btn-main:disabled { background: #cbd5e1; color: #fff; cursor: not-allowed; box-shadow: none; transform: none;}
+
+        /* 重置所有 button 使其不受全局主按钮影响 */
+        button { all: unset; box-sizing: border-box; cursor: pointer; }
+        
+        .btn-small { padding: 4px 10px; font-size: 0.75rem; background: rgba(255,255,255,0.8); color: #475569; border-radius: 6px; font-weight: 500; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.07), 0 1px 3px rgba(0,0,0,0.03); transition: all 0.15s; font-family: inherit; display: inline-flex; align-items:center; white-space: nowrap; flex-shrink: 0;}
+        .btn-small:hover { background: #fff; color: #0f172a; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12), 0 3px 6px rgba(0,0,0,0.05);}
+        .btn-small:disabled { opacity:0.4; cursor:not-allowed; }
+        .btn-primary-small { padding: 4px 10px; font-size: 0.7rem; background: #e0f2fe; color: #0369a1; border-radius: 6px; font-weight: 600; box-shadow: inset 0 0 0 1px #7dd3fc; transition: all 0.15s; font-family: inherit; display: inline-flex; align-items:center; justify-content:center; white-space: nowrap; flex-shrink: 0; }
+        .btn-primary-small:hover { background: #bae6fd; }
+        
+        input[type="radio"] { cursor: pointer; transform: scale(1.15); accent-color: var(--primary); margin:0; }
+
+        .pagination { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--text-muted); margin-top:10px; }
+        
+        /* Main Right Side Components */
+        .panel { background: var(--panel-bg); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border-radius: var(--radius-main); padding: 20px 24px; display: flex; flex-direction: column; box-shadow: var(--glass-shadow), var(--glass-border); }
+        
+        textarea { width: 100%; height: 85px; background: rgba(255,255,255,0.6); border: none; box-shadow: inset 0 2px 5px rgba(0,0,0,0.03), inset 0 0 0 1px rgba(0,0,0,0.06); border-radius: var(--radius-sm); color: var(--text-main); padding: 14px; font-size: 1rem; resize: none; box-sizing: border-box; margin-bottom: 15px; outline: none; transition: all 0.2s; line-height: 1.5; font-family: inherit;}
+        textarea:focus { background: #fff; box-shadow: inset 0 0 0 1.5px var(--primary), 0 4px 12px rgba(2, 132, 199, 0.08); }
+        
+        .synthesize-bar { display: flex; justify-content: space-between; align-items: center; }
+        .active-voice-badge { background: #f0fdf4; color: #166534; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; box-shadow: inset 0 0 0 1px #bbf7d0; display: flex; align-items: center; gap: 8px; font-weight: 500;}
+        
+        /* ===== 波形播放按钮 - 精致极简风格 ===== */
+        .wave-wrapper { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.55); padding: 5px 8px; border-radius: 8px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;}
+        /* 播放按钮：白色圆形 + 细描边 + 主色图标，低调精致 */
+        .wave-btn {
+            all: unset;
+            flex: 0 0 auto;
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.10), inset 0 0 0 1px rgba(0,0,0,0.07);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+            flex-shrink: 0;
+        }
+        .wave-btn:hover { background: #f0f9ff; box-shadow: 0 2px 8px rgba(2,132,199,0.18), inset 0 0 0 1px rgba(2,132,199,0.25); transform: scale(1.05); }
+        .wave-btn:active { transform: scale(0.95); }
+        .wave-btn svg { width: 12px; height: 12px; fill: #0284c7; display: block; margin-left: 1px; transition: fill 0.15s; }
+        .wave-btn.playing svg { fill: #0369a1; margin-left: 0; }
+        /* 大播放按钮（右侧回放区） */
+        .wave-btn-lg {
+            all: unset;
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.10), inset 0 0 0 1.5px rgba(0,0,0,0.07);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+            flex-shrink: 0;
+        }
+        .wave-btn-lg:hover { background: #f0f9ff; box-shadow: 0 4px 14px rgba(2,132,199,0.2), inset 0 0 0 1.5px rgba(2,132,199,0.3); transform: scale(1.06); }
+        .wave-btn-lg:active { transform: scale(0.94); }
+        .wave-btn-lg svg { width: 16px; height: 16px; fill: #0284c7; display: block; margin-left: 2px; }
+        .wave-btn-lg.playing svg { margin-left: 0; }
+        .wave-container { flex: 1; overflow: hidden; min-width: 0; }
+        
+        /* Real-time Visualizer & Player */
+        .player-container { flex: 0 0 auto; margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.7); border-radius: var(--radius-sm); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04); }
+
+        
+        /* History Table */
+        .history-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        .history-list { flex: 1; overflow-y: auto; padding-right: 8px; margin-top: 5px;}
+        table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; }
+        th, td { padding: 12px; border-bottom: 1px solid rgba(0,0,0,0.04); }
+        th { font-size: 1rem; color: var(--text-muted); font-weight: 600; position: sticky; top: 0; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); z-index: 10; text-transform: uppercase; letter-spacing: 0.5px;}
+        tr { transition: background 0.2s; }
+        tr:hover td { background: rgba(255, 255, 255, 0.4); }
+        .td-text { font-size: 0.9rem; max-width: 320px; line-height: 1.5; color: #334155; }
+        .td-audio { width: 220px; }
+        .td-time { width: 85px; font-size: 0.9rem; color: var(--text-muted); font-variant-numeric: tabular-nums;}
+        .td-action { width: 100px; text-align: right; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+
+        .loading-spinner { display: inline-block; width: 0.9em; height: 0.9em; border: 2.5px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 0.8s linear infinite; vertical-align: text-bottom; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Footer */
+        .footer {
+            padding: 10px 30px;
+            font-size: 0.85rem;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+            background: transparent;
+        }
+        .footer a { color: var(--primary); text-decoration: none; font-weight: 500;}
+        .footer a:hover { text-decoration: underline; }
+
+        /* ===== 音色管理：编辑按钮覆盖层 ===== */
+        .voice-edit-btn {
+            all: unset;
+            position: absolute; top: 6px; left: 6px;
+            width: 22px; height: 22px; border-radius: 50%;
+            background: #fef3c7;
+            box-shadow: 0 1px 4px rgba(245,158,11,0.3), inset 0 0 0 1px #fcd34d;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 5;
+            font-size: 11px; line-height: 1;
+            transition: transform 0.12s, box-shadow 0.12s;
+        }
+        .voice-edit-btn:hover { transform: scale(1.15); box-shadow: 0 2px 8px rgba(245,158,11,0.5), inset 0 0 0 1px #f59e0b; }
+
+        /* ===== 音色管理：删除按钮覆盖层 ===== */
+        .voice-del-btn {
+            all: unset;
+            position: absolute; top: 6px; right: 6px;
+            width: 22px; height: 22px; border-radius: 50%;
+            background: #fee2e2;
+            box-shadow: 0 1px 4px rgba(220,38,38,0.3), inset 0 0 0 1px #fca5a5;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 5;
+            transition: background 0.15s, transform 0.1s;
+        }
+        .voice-del-btn:hover { background: #fecaca; transform: scale(1.1); }
+        .voice-del-btn svg { width: 10px; height: 10px; fill: #dc2626; }
+
+        /* ===== 模态框 ===== */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(15,23,42,0.4);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        .modal-card {
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15), inset 0 0 0 1px rgba(255,255,255,0.8);
+            width: 680px; max-width: 96vw;
+            max-height: 92vh; overflow-y: auto;
+            animation: slideUp 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+        @keyframes slideUp { from { transform: translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        .modal-header {
+            padding: 20px 24px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        .modal-header h3 { margin:0; font-size:1.1rem; font-weight:700; color:#0f172a; }
+        .modal-close {
+            all: unset; cursor: pointer; width:32px; height:32px; border-radius:50%;
+            background: rgba(0,0,0,0.05); display:flex; align-items:center; justify-content:center;
+            transition: background 0.15s;
+        }
+        .modal-close:hover { background: rgba(0,0,0,0.1); }
+        .modal-close svg { width:14px; height:14px; fill:#64748b; }
+        .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 18px; }
+        .modal-footer {
+            padding: 16px 24px 20px;
+            display: flex; justify-content: flex-end; gap: 10px;
+            border-top: 1px solid rgba(0,0,0,0.06);
+        }
+        /* 表单样式 */
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-label { font-size: 0.82rem; font-weight: 600; color: #334155; }
+        .form-label .opt { font-weight:400; color:#94a3b8; font-size:0.75rem; margin-left:4px; }
+        .form-input {
+            all: unset; box-sizing: border-box;
+            width: 100%; padding: 10px 14px;
+            background: rgba(255,255,255,0.8);
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08), inset 0 2px 4px rgba(0,0,0,0.02);
+            border-radius: 8px; font-size: 0.95rem; font-family: inherit; color: #1e293b;
+            transition: box-shadow 0.2s;
+        }
+        .form-input:focus { box-shadow: inset 0 0 0 1.5px var(--primary), 0 4px 10px rgba(2,132,199,0.08); background:#fff; }
+        .form-textarea {
+            all: unset; box-sizing: border-box;
+            width: 100%; padding: 10px 14px; min-height: 70px;
+            background: rgba(255,255,255,0.8);
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+            border-radius: 8px; font-size: 0.9rem; font-family: inherit; color: #1e293b;
+            resize: vertical; transition: box-shadow 0.2s; line-height: 1.5;
+        }
+        .form-textarea:focus { box-shadow: inset 0 0 0 1.5px var(--primary); background: #fff; }
+        /* 两列媒体区域 */
+        .modal-media-row { display: grid; grid-template-columns: 3fr 7fr; gap: 16px; }
+        .media-col { display: flex; flex-direction: column; gap: 8px; }
+        /* 上传区 */
+        .drop-zone {
+            all: unset; box-sizing: border-box; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 6px;
+            height: 80px; border-radius: 10px;
+            box-shadow: inset 0 0 0 1.5px rgba(0,0,0,0.1);
+            background: rgba(248,250,252,0.9);
+            cursor: pointer; font-size: 0.8rem; color: #94a3b8;
+            transition: all 0.2s;
+        }
+        .drop-zone:hover { background: #f0f9ff; box-shadow: inset 0 0 0 1.5px var(--primary); color: var(--primary); }
+        .drop-zone.has-file { background: #f0fdf4; box-shadow: inset 0 0 0 1.5px #10b981; color: #166534; }
+        .drop-zone svg { width: 22px; height: 22px; fill: currentColor; }
+        /* 裁剪区域 */
+        .crop-area-wrap {
+            position: relative; overflow: hidden; border-radius: 8px;
+            background: #f1f5f9;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+            display: flex; align-items: center; justify-content: center;
+            min-height: 160px;
+        }
+        #cropCanvas { display: block; cursor: crosshair; max-width: 100%; }
+        .crop-preview-wrap {
+            border-radius: 8px; overflow: hidden;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+            background: #f1f5f9; display: flex; align-items: center; justify-content: center;
+            min-height: 100px;
+        }
+        #cropPreviewImg {
+            max-width: 100%; max-height: 160px; border-radius: 6px; display: block; object-fit: contain;
+        }
+        /* 音频上传区 */
+        .audio-wave-wrap {
+            background: rgba(248,252,255,0.9); border-radius: 8px;
+            padding: 8px 10px;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+        }
+        .trim-controls {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;
+        }
+        .trim-input-group { display: flex; flex-direction: column; gap: 3px; }
+        .trim-input-label { font-size: 0.7rem; color: #64748b; font-weight: 500; }
+        .trim-input {
+            all: unset; box-sizing: border-box;
+            width: 100%; padding: 6px 10px;
+            background: #fff;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+            border-radius: 6px; font-size: 0.85rem; font-family: inherit; color: #1e293b;
+        }
+        .trim-status { font-size: 0.72rem; color: #10b981; margin-top: 5px; font-weight: 500; min-height: 16px; }
+        
+        /* 波形图裁剪：叠加在波形容器外层 */
+        .wave-container-wrapper { position: relative; border-radius: 8px; overflow: hidden; background: #f8fafc; border: 1px solid #e2e8f0; }
+        .wave-interaction-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none; z-index: 10;
+        }
+        .wave-trim-mask {
+            position: absolute; top: 0; bottom: 0;
+            background: rgba(148, 163, 184, 0.35);
+            pointer-events: none; z-index: 11;
+        }
+        .wave-trim-mask.left { left: 0; }
+        .wave-trim-mask.right { right: 0; }
+        .trim-handle {
+            position: absolute; top: 0; bottom: 0; width: 6px;
+            background: var(--primary); cursor: ew-resize;
+            pointer-events: auto; z-index: 20;
+            box-shadow: 0 0 4px rgba(2,132,199,0.4);
+            transition: background 0.1s;
+        }
+        .trim-handle:hover { background: #0369a1; }
+        .trim-handle:active { background: #075985; }
+        .trim-handle .handle-grip {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            display: flex; flex-direction: column; gap: 3px; align-items: center;
+        }
+        .trim-handle .handle-grip span {
+            display: block; width: 2px; height: 2px; border-radius: 50%; background: rgba(255,255,255,0.8);
+        }
+
+        /* ===== 推理参数调节面板 ===== */
+        .param-panel { background: rgba(248,250,252,0.8); border-radius: var(--radius-sm); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05); margin-bottom: 15px; overflow: hidden; transition: box-shadow 0.2s; }
+        .param-panel:hover { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.03); }
+        .param-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #334155; user-select: none; transition: background 0.15s; }
+        .param-header:hover { background: rgba(255,255,255,0.6); }
+        .param-toggle { font-size: 0.7rem; color: #94a3b8; transition: transform 0.25s ease; }
+        .param-toggle.open { transform: rotate(90deg); }
+        .param-body { padding: 0 14px 14px; animation: paramSlide 0.25s ease; }
+        @keyframes paramSlide { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+        .param-section-title { font-size: 0.72rem; font-weight: 600; color: #64748b; margin: 12px 0 8px; letter-spacing: 0.5px; }
+        .param-section-title:first-child { margin-top: 4px; }
+        .param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .param-item { display: flex; flex-direction: column; gap: 5px; }
+        .param-label { display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: #475569; font-weight: 500; }
+        .param-tag { font-size: 0.6rem; padding: 1px 5px; border-radius: 3px; font-weight: 600; margin-left: 4px; }
+        .param-tag.talker { background: #dbeafe; color: #1d4ed8; }
+        .param-tag.predictor { background: #fce7f3; color: #be185d; }
+        .param-value { font-family: 'SF Mono','Cascadia Code','Consolas',monospace; font-size: 0.78rem; color: var(--primary); font-weight: 600; min-width: 36px; text-align: right; }
+        .param-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: linear-gradient(90deg,#bfdbfe,#93c5fd); border-radius: 2px; outline: none; }
+        .param-slider:hover { background: linear-gradient(90deg,#93c5fd,#60a5fa); }
+        .param-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(2,132,199,0.3), inset 0 0 0 1.5px var(--primary); cursor: pointer; transition: transform 0.1s; }
+        .param-slider::-webkit-slider-thumb:hover { transform: scale(1.15); box-shadow: 0 2px 8px rgba(2,132,199,0.4), inset 0 0 0 2px var(--primary); }
+        .param-seed-input { all: unset; box-sizing: border-box; width: 100%; padding: 5px 10px; background: rgba(255,255,255,0.8); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08); border-radius: 6px; font-size: 0.82rem; font-family: 'SF Mono','Cascadia Code','Consolas',monospace; color: #1e293b; transition: box-shadow 0.2s; }
+        .param-seed-input:focus { box-shadow: inset 0 0 0 1.5px var(--primary); background: #fff; }
+        .param-seed-input::placeholder { color: #cbd5e1; }
+        .param-advanced { margin-top: 10px; border-top: 1px solid rgba(0,0,0,0.04); padding-top: 8px; }
+        .param-advanced summary { font-size: 0.72rem; font-weight: 600; color: #94a3b8; cursor: pointer; user-select: none; padding: 4px 0; transition: color 0.15s; list-style: none; }
+        .param-advanced summary:hover { color: #64748b; }
+        .param-advanced[open] summary { color: #64748b; margin-bottom: 8px; }
+        .param-reset-btn { all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 6px; margin-top: 12px; font-size: 0.75rem; font-weight: 500; color: #94a3b8; background: rgba(255,255,255,0.5); border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.15s; font-family: inherit; }
+        .param-reset-btn:hover { color: #475569; background: rgba(255,255,255,0.8); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Qwen3-TTS-X <span>智能流式语音克隆工作台</span></h1>
+    <div>
+        <a href="/docs" target="_blank">OpenAI 兼容 API：查看接口文档</a>
+    </div>
+</div>
+
+<div class="workspace">
+    <div class="sidebar">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid rgba(0,0,0,0.04); padding-bottom:12px;">
+            <div>
+                <span style="font-size:1.05rem; font-weight:600; color:#334155;">🎙️ 音源素材库</span>
+                <span style="font-size: 0.7rem; font-weight:normal; color:#64748b; background:rgba(0,0,0,0.05); padding:3px 8px; border-radius:12px; margin-left:6px;">目录自适应</span>
+            </div>
+            <div style="display:flex; gap:6px;">
+                <button id="manageVoiceBtn" class="btn-small" onclick="toggleManageMode()">⚙️ 管理音色</button>
+                <button class="btn-primary-small" onclick="openAddModal()">✚ 添加音色</button>
+            </div>
+        </div>
+        <div class="example-list" id="example-list">
+            <!-- populated by JS -->
+        </div>
+        <div class="pagination">
+            <button class="btn-small" onclick="loadExamples(-1)" id="prevBtn">👈 上一页</button>
+            <span id="pageInfo" style="font-variant-numeric: tabular-nums;">1 / 1</span>
+            <button class="btn-small" onclick="loadExamples(1)" id="nextBtn">下一页 👉</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="panel">
+            <h2 style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; border-bottom:none;">
+                <span style="font-size:1.1rem; font-weight:600; color:#334155;">✨ 实时语音合成</span>
+                <div class="active-voice-badge" id="activeVoiceBadge" style="background:#fef2f2; color:#b91c1c; box-shadow:inset 0 0 0 1px #fecaca;">
+                    <span style="display:inline-block;width:6px;height:6px;background:#ef4444;border-radius:50%;box-shadow: 0 0 6px #ef4444;"></span> 请点击左侧 🎙️音源素材库 选择音色
+                </div>
+            </h2>
+            
+            <textarea id="synthText" placeholder="请输入要转化为语音的汉字文本...(例如：欢迎来到极致美学的流式通讯界面。)"></textarea>
+
+            <!-- 推理参数调节面板 -->
+            <div class="param-panel">
+                <div class="param-header" onclick="toggleParamPanel()">
+                    <span>🎛️ 推理参数调节</span>
+                    <span id="paramToggleIcon" class="param-toggle">▶</span>
+                </div>
+                <div class="param-body" id="paramBody" style="display:none;">
+                    <div class="param-section-title" style="margin-top:4px;">🔥 双路温度控制</div>
+                    <div class="param-grid">
+                        <div class="param-item">
+                            <div class="param-label"><span>Temperature <span class="param-tag talker">语义层</span></span><span class="param-value" id="val-temperature">0.60</span></div>
+                            <input type="range" class="param-slider" id="param-temperature" min="0" max="2" step="0.05" value="0.6" oninput="updateParamVal(this,'val-temperature')">
+                        </div>
+                        <div class="param-item">
+                            <div class="param-label"><span>Sub Temperature <span class="param-tag predictor">声学层</span></span><span class="param-value" id="val-sub-temperature">0.60</span></div>
+                            <input type="range" class="param-slider" id="param-sub-temperature" min="0" max="2" step="0.05" value="0.6" oninput="updateParamVal(this,'val-sub-temperature')">
+                        </div>
+                    </div>
+                    <div class="param-section-title">🎲 随机种子锁定</div>
+                    <div class="param-grid">
+                        <div class="param-item">
+                            <div class="param-label"><span>Seed <span class="param-tag talker">语义层</span></span></div>
+                            <input type="number" class="param-seed-input" id="param-seed" placeholder="留空 = 每次随机" value="42">
+                        </div>
+                        <div class="param-item">
+                            <div class="param-label"><span>Sub Seed <span class="param-tag predictor">声学层</span></span></div>
+                            <input type="number" class="param-seed-input" id="param-sub-seed" placeholder="留空 = 每次随机" value="45">
+                        </div>
+                    </div>
+                    <details class="param-advanced">
+                        <summary>⚙️ 高级采样参数</summary>
+                        <div class="param-grid">
+                            <div class="param-item">
+                                <div class="param-label"><span>Top-P</span><span class="param-value" id="val-top-p">1.00</span></div>
+                                <input type="range" class="param-slider" id="param-top-p" min="0" max="1" step="0.05" value="1.0" oninput="updateParamVal(this,'val-top-p')">
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label"><span>Top-K</span><span class="param-value" id="val-top-k">50</span></div>
+                                <input type="range" class="param-slider" id="param-top-k" min="0" max="200" step="1" value="50" oninput="updateParamVal(this,'val-top-k')">
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label"><span>Min-P <span style="font-size:0.6rem;color:#94a3b8">抗电音</span></span><span class="param-value" id="val-min-p">0.00</span></div>
+                                <input type="range" class="param-slider" id="param-min-p" min="0" max="0.5" step="0.01" value="0" oninput="updateParamVal(this,'val-min-p')">
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label"><span>Repeat Penalty</span><span class="param-value" id="val-repeat-penalty">1.05</span></div>
+                                <input type="range" class="param-slider" id="param-repeat-penalty" min="1" max="2" step="0.05" value="1.05" oninput="updateParamVal(this,'val-repeat-penalty')">
+                            </div>
+                            <div class="param-item" style="grid-column:span 2;">
+                                <div class="param-label"><span>Max Steps <span style="font-size:0.6rem;color:#94a3b8">最大生成长度</span></span><span class="param-value" id="val-max-steps">1000</span></div>
+                                <input type="range" class="param-slider" id="param-max-steps" min="100" max="2000" step="50" value="1000" oninput="updateParamVal(this,'val-max-steps')">
+                            </div>
+                        </div>
+                    </details>
+                    <button class="param-reset-btn" onclick="resetParams()">↻ 重置为默认值</button>
+                </div>
+            </div>
+
+            <div class="synthesize-bar">
+                <span id="wsStatus" style="font-size:0.75rem; color:#0ea5e9; font-weight:500;">⚪ 等待实时通讯接入...</span>
+                <button class="btn-main" id="generateBtn" onclick="generateTTS()">⚡ 实时合成 (边推边播)</button>
+            </div>
+
+            
+            <div class="player-container" style="display:none" id="resultPlayerContainer">
+                <div style="font-size: 0.75rem; color: #059669; margin-bottom: 8px; font-weight:600;">上次完结切片高精回放：</div>
+                
+                <div class="wave-wrapper" style="height: 52px; background: rgba(248,252,255,0.9); box-shadow: 0 2px 12px rgba(0,0,0,0.04), inset 0 0 0 1px rgba(0,0,0,0.05);">
+                    <button id="main-ws-btn" class="wave-btn-lg" onclick="toggleMainWave()">
+                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </button>
+                    <div id="main-ws-container" class="wave-container" style="height: 42px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel history-panel">
+            <h2 style="margin-bottom:5px;">📜 生成历史 (History)</h2>
+            <div class="history-list">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th class="td-time">落盘时间</th>
+                            <th class="td-text">生成内容记录</th>
+                            <th class="td-audio">动态波形预览</th>
+                            <th class="td-action">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    <span>© 2026 Qwen3-TTS-X 版权所有 - 仅作为技术学习用途，禁止商用打包。 <a href="javascript:void(0)" onclick="openDisclaimer()" style="margin-left:8px; opacity:0.8;">[免责声明]</a></span>
+    <span>关注更多 AI 技术：<a href="https://shumox.com" target="_blank">shumox.com</a></span>
+</div>
+
+<script>
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+    let nextPlayTime = 0;
+    
+    let currentPage = 1;
+    let selectedVoice = null;     
+    let selectedVoiceName = null; 
+    let waveSurfers = {}; 
+    let mainWaveSurfer = null;
+
+
+
+    const playIcon = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+    const pauseIcon = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+
+    // 安全 ID：将任意字符串（含中文）转为安全的 DOM attribute id
+    function safeId(str) {
+        return 'ws_' + str.split('').map(c => c.charCodeAt(0).toString(16)).join('');
+    }
+
+    function initWaveSurfer(id, safeContainerId, url, safeBtnId, height=26) {
+        // 销毁旧实例，防止残留冲突
+        if(waveSurfers[id]) {
+            try { waveSurfers[id].destroy(); } catch(e) {}
+            delete waveSurfers[id];
+        }
+        const domContainer = document.getElementById(safeContainerId);
+        const btn = document.getElementById(safeBtnId);
+        if(!domContainer || !btn) return;
+        btn.innerHTML = playIcon;
+
+        try {
+            const ws = WaveSurfer.create({
+                container: domContainer,
+                waveColor: '#93c5fd',
+                progressColor: '#0284c7',
+                cursorWidth: 1,
+                cursorColor: '#0ea5e9',
+                barWidth: 2,
+                barGap: 1,
+                barRadius: 3,
+                height: height,
+                url: url,
+                normalize: true,
+                interact: true
+            });
+            waveSurfers[id] = ws;
+
+            ws.on('play', () => {
+                btn.classList.add('playing');
+                btn.innerHTML = pauseIcon;
+                // 暂停其他全部
+                Object.keys(waveSurfers).forEach(k => {
+                    if(k !== id && waveSurfers[k] && waveSurfers[k].isPlaying()) waveSurfers[k].pause();
+                });
+                if(mainWaveSurfer && mainWaveSurfer.isPlaying()) mainWaveSurfer.pause();
+            });
+            ws.on('pause', () => { btn.classList.remove('playing'); btn.innerHTML = playIcon; });
+            ws.on('finish', () => { btn.classList.remove('playing'); btn.innerHTML = playIcon; });
+            ws.on('error', (e) => console.warn('WaveSurfer error:', id, e));
+        } catch(err) {
+            console.error('WaveSurfer init failed:', id, err);
+        }
+    }
+
+    function toggleWave(e, id) {
+        if(e && e.stopPropagation) e.stopPropagation();
+        if(waveSurfers[id]) waveSurfers[id].playPause();
+    }
+    
+    function toggleMainWave() {
+        if(mainWaveSurfer) {
+            mainWaveSurfer.playPause();
+            // 暂停其他
+            Object.keys(waveSurfers).forEach(k => { if(waveSurfers[k] && waveSurfers[k].isPlaying()) waveSurfers[k].pause(); });
+        }
+    }
+
+    // ===================== 推理参数面板控制 =====================
+    function toggleParamPanel() {
+        const body = document.getElementById('paramBody');
+        const icon = document.getElementById('paramToggleIcon');
+        if (body.style.display === 'none') {
+            body.style.display = 'block';
+            icon.classList.add('open');
+        } else {
+            body.style.display = 'none';
+            icon.classList.remove('open');
+        }
+    }
+    function updateParamVal(slider, valId) {
+        const step = parseFloat(slider.step);
+        const val = parseFloat(slider.value);
+        document.getElementById(valId).textContent = step >= 1 ? val.toFixed(0) : val.toFixed(2);
+    }
+    function getConfigParams() {
+        const seedVal = document.getElementById('param-seed').value.trim();
+        const subSeedVal = document.getElementById('param-sub-seed').value.trim();
+        return {
+            temperature: parseFloat(document.getElementById('param-temperature').value),
+            sub_temperature: parseFloat(document.getElementById('param-sub-temperature').value),
+            seed: seedVal ? parseInt(seedVal) : null,
+            sub_seed: subSeedVal ? parseInt(subSeedVal) : null,
+            top_p: parseFloat(document.getElementById('param-top-p').value),
+            top_k: parseInt(document.getElementById('param-top-k').value),
+            min_p: parseFloat(document.getElementById('param-min-p').value),
+            repeat_penalty: parseFloat(document.getElementById('param-repeat-penalty').value),
+            max_steps: parseInt(document.getElementById('param-max-steps').value),
+        };
+    }
+    function resetParams() {
+        const sliders = {
+            'param-temperature': [0.6, 'val-temperature'],
+            'param-sub-temperature': [0.6, 'val-sub-temperature'],
+            'param-top-p': [1.0, 'val-top-p'],
+            'param-top-k': [50, 'val-top-k'],
+            'param-min-p': [0, 'val-min-p'],
+            'param-repeat-penalty': [1.05, 'val-repeat-penalty'],
+            'param-max-steps': [1000, 'val-max-steps'],
+        };
+        Object.entries(sliders).forEach(([id, [val, valId]]) => {
+            const el = document.getElementById(id);
+            if (el) { el.value = val; updateParamVal(el, valId); }
+        });
+        document.getElementById('param-seed').value = 42;
+        document.getElementById('param-sub-seed').value = 45;
+    }
+
+    async function loadExamples(pageDelta = 0) {
+        currentPage += pageDelta;
+        if(currentPage < 1) currentPage = 1;
+        
+        try {
+            const res = await fetch(`/api/examples`);
+            const json = await res.json();
+            const rawData = json.data || [];
+            
+            const size = 10;
+            const totalPages = Math.ceil(rawData.length / size) || 1;
+            if(currentPage > totalPages) {
+                currentPage = totalPages;
+                return loadExamples(0);
+            }
+            
+            document.getElementById('pageInfo').innerText = `${currentPage} / ${totalPages}`;
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+            
+            const container = document.getElementById('example-list');
+            container.innerHTML = '';
+            
+            // 销毁并清理所有旧 wavesurfer 实例
+            Object.values(waveSurfers).forEach(ws => { try { ws.destroy(); } catch(e){} });
+            waveSurfers = {};
+            
+            if(rawData.length === 0) {
+                container.innerHTML = `
+                <div style="text-align:center; padding: 50px 20px; color: #94a3b8; font-size:1rem; line-height: 1.6;">
+                    📁 暂无音源素材 <br><br>
+                    请在项目内 <b>example_audio</b> 下层建文件夹，<br>抛入 wav与原文件 并刷新界面。
+                </div>`;
+                return;
+            }
+            
+            const sliced = rawData.slice((currentPage-1)*size, currentPage*size);
+            
+            sliced.forEach(item => {
+                const validMediaUrl = item.audio_url || item.json_url;
+                const isSelected = selectedVoice === validMediaUrl;
+                const hasJson = !!item.json_url;
+                
+                const el = document.createElement('div');
+                el.className = `example-item ${isSelected ? 'selected' : ''}`;
+                
+                const imgSrc = item.image ? item.image : '';
+                const firstChar = item.name ? item.name.charAt(0).toUpperCase() : '?';
+                const imgHtml = imgSrc ? `<img src="${imgSrc}" class="ex-img" />` : `<div class="ex-img" style="background:linear-gradient(135deg, var(--primary), #7dd3fc);color:#fff;font-size:1.1rem;font-weight:700;">${firstChar}</div>`;
+                
+                const sid = safeId(item.name);
+                let mediaHtml = '';
+                if(item.audio_url) {
+                    mediaHtml = `
+                        <div class="wave-wrapper">
+                            <button id="wbtn-${sid}" class="wave-btn" onclick="toggleWave(event,'${item.name}')" title="点击播放">${playIcon}</button>
+                            <div id="wbox-${sid}" class="wave-container" style="height:28px;"></div>
+                        </div>
+                    `;
+                } else if(item.json_url) {
+                    mediaHtml = `<div style="font-size:0.75rem; color:#10b981; font-weight:600; padding: 4px 0;"><span style="color:#34d399">📦</span> 代码级压缩 JSON 特征池</div>`;
+                } else {
+                    mediaHtml = `<div style="font-size:0.75rem; color:#ef4444; padding: 4px 0;">未找到发音源文件</div>`;
+                }
+
+                let refTextVal = item.text || '';
+                
+                el.innerHTML = `
+                    <div class="ex-avatar-col">
+                        ${imgHtml}
+                        <div class="ex-name" title="${item.name}">${item.name}</div>
+                    </div>
+                    <div class="ex-audio-col">
+                        ${mediaHtml}
+                    </div>
+                    <div class="ex-actions">
+                        <button class="btn-primary-small" style="width:100%" title="仅依据该文件夹下的物料提纯出 JSON" onclick="extractClone(event, ${JSON.stringify(item).replace(/"/g, '&quot;')})">克隆特征</button>
+                        ${hasJson ? `<div class="json-badge">配置就绪</div>` : ''}
+                    </div>
+                    <input type="text" class="ex-ref" id="ref-input-${item.name}" value="${refTextVal}" placeholder="请输入内容文字配合提取... (失焦保存)" 
+                               onchange="saveRefText('${item.name}', this.value)" 
+                               onclick="event.stopPropagation()" />
+                `;
+                el.onclick = () => selectVoice(item);
+                // 管理模式：注入删除按钮
+                if(manageMode) {
+                    el.style.position = 'relative';
+                    el.style.boxShadow = 'inset 0 0 0 1.5px rgba(220,38,38,0.18), 0 2px 4px rgba(0,0,0,0.01)';
+                    // 编辑按钮
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'voice-edit-btn';
+                    editBtn.title = '编辑该音色';
+                    editBtn.innerHTML = '✏️';
+                    editBtn.onclick = (e) => { e.stopPropagation(); openAddModal(item); };
+                    el.appendChild(editBtn);
+                    // 删除按钮
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'voice-del-btn';
+                    delBtn.title = '删除该音色';
+                    delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+                    delBtn.onclick = (e) => deleteVoice(e, item.name);
+                    el.appendChild(delBtn);
+                }
+                container.appendChild(el);
+                
+                if(item.audio_url) {
+                    // 用 requestAnimationFrame 确保 DOM 完全渲染后再初始化
+                    const capturedItem = item;
+                    const capturedSid = sid;
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            initWaveSurfer(capturedItem.name, `wbox-${capturedSid}`, capturedItem.audio_url, `wbtn-${capturedSid}`, 28);
+                        });
+                    });
+                }
+            });
+            
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function loadHistory() {
+        try {
+            const res = await fetch('/api/history');
+            const json = await res.json();
+            const tbody = document.getElementById('historyBody');
+            tbody.innerHTML = '';
+            
+            json.data.forEach(data => {
+                const tr = document.createElement('tr');
+                const date = new Date(data.timestamp).toLocaleString();
+                tr.innerHTML = `
+                    <td class="td-time" title="${date}">${date.split(' ')[1]}</td>
+                    <td class="td-text">${data.text}</td>
+                    <td class="td-audio">
+                        <div class="wave-wrapper">
+                            <button id="hbtn-${data.id}" class="wave-btn" onclick="toggleWave(event,'${data.id}')">${playIcon}</button>
+                            <div id="hbox-${data.id}" class="wave-container" style="height:28px;"></div>
+                        </div>
+                    </td>
+                    <td class="td-action">
+                        <div style="display:flex; flex-direction:column; gap:5px; width:100%; align-items: stretch;">
+                            <a href="${data.json_url}" download class="btn-small" style="text-decoration:none; color:#0f172a; width:100%; box-sizing:border-box; justify-content:center; display:flex;">📥 下载</a>
+                            <button class="btn-small" onclick="deleteHistory(event, '${data.id.replace('history-', '')}')" style="background:#fee2e2; color:#dc2626; box-shadow:inset 0 0 0 1px #fca5a5; width:100%; box-sizing:border-box; justify-content:center; display:flex;">🗑️ 删除</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+                
+                const capturedDataId = data.id;
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    initWaveSurfer(capturedDataId, `hbox-${capturedDataId}`, data.audio_url, `hbtn-${capturedDataId}`, 28);
+                }));
+            });
+        } catch(e) {
+            console.log("加载历史错误", e);
+        }
+    }
+
+    async function saveRefText(voiceName, textVal) {
+        if(!textVal.trim()) return;
+        try {
+            await fetch('/api/save_text', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ voice_name: voiceName, text: textVal.trim() })
+            });
+        } catch(e) {
+            console.warn("保存 txt 失败", e);
+        }
+    }
+
+    async function extractClone(e, item) {
+        e.stopPropagation(); 
+        
+        const textBox = document.getElementById(`ref-input-${item.name}`);
+        const refWords = textBox.value.trim();
+        
+        if(!refWords && !item.json_url) {
+            alert("⚠️ 提取拦截：纯音频流抽特性必须指派原语句字幕库（框内填写）。");
+            textBox.focus();
+            return;
+        }
+        
+        if(item.json_url) {
+            const sure = confirm(`目录 ${item.name} 已经有一份精准提纯过的 JSON 特征，您确定要再次跑推想覆写它吗？`);
+            if(!sure) return;
+        }
+        
+        await saveRefText(item.name, refWords);
+        
+        try {
+            const btn = e.target;
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '抽解中...';
+            btn.disabled = true;
+            
+            const res = await fetch('/api/extract_clone', {
+                method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ voice_name: item.name, ref_text: refWords })
+            });
+            const data = await res.json();
+            
+            if(!res.ok) alert("🔴 底层提炼报错: " + data.detail);
+            else {
+                // Flash success, then soft reload
+                btn.style.background = '#10b981';
+                btn.style.color = 'white';
+                btn.innerHTML = '✔ 分离落盘';
+                setTimeout(() => loadExamples(0), 1000); 
+            }
+        } catch(err) {
+            alert("错误：" + err.message);
+        }
+    }
+
+    function selectVoice(item) {
+        // 如果没有 JSON 配置，强制拦截并提示用户先克隆
+        if (!item.json_url) {
+            alert(`⚠️ 音色库加载拦截：请先点击右侧“克隆特征”按钮，为该音源生成配置文件后再进行选中加载。`);
+            return;
+        }
+
+        const validMediaUrl = item.audio_url || item.json_url;
+        if(!validMediaUrl) return;
+        if (selectedVoice === validMediaUrl) return;
+
+        selectedVoice = validMediaUrl;
+        selectedVoiceName = item.name;
+        
+        document.getElementById('activeVoiceBadge').innerHTML = `
+            <span style="display:inline-block;width:6px;height:6px;background:#10b981;border-radius:50%;box-shadow: 0 0 6px #10b981;"></span> 
+            已设定音色: ${item.name}
+        `;
+        document.getElementById('activeVoiceBadge').style.background = '#f0fdf4';
+        document.getElementById('activeVoiceBadge').style.color = '#166534';
+        document.getElementById('activeVoiceBadge').style.boxShadow = 'inset 0 0 0 1px #bbf7d0';
+        
+        // 局部更新 DOM 状态，不刷新整个列表
+        const els = document.querySelectorAll('.example-item');
+        els.forEach(el => {
+            const itemNameNode = el.querySelector('.ex-name');
+            if (itemNameNode && itemNameNode.getAttribute('title') === item.name) {
+                el.classList.add('selected');
+            } else {
+                el.classList.remove('selected');
+            }
+        });
+    }
+
+    function generateTTS() {
+        if(audioContext.state === 'suspended') audioContext.resume();
+        
+        const textToSynth = document.getElementById('synthText').value.trim();
+        if(!textToSynth) return alert("❌ 生成阻断：文本大槽不得空投！");
+        if(!selectedVoice) return alert("❌ 逻辑陷阱：没有为主引擎挂接目标音源参数！");
+
+        const refInputEl = document.getElementById(`ref-input-${selectedVoiceName}`);
+        const exactRefText = refInputEl ? refInputEl.value.trim() : "";
+        
+        const isJson = selectedVoice.endsWith('.json');
+        if(!isJson && !exactRefText) {
+             return alert("❌ 安全抛错：Wav 临时抽取必须强制提供逐字稿校验。");
+        }
+
+        const btn = document.getElementById('generateBtn');
+        const origText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<span class="loading-spinner"></span> 大图演算排队...`;
+        document.getElementById('wsStatus').innerHTML = '🟢 Core 链路构建...';
+        
+        // Hide result player
+        document.getElementById('resultPlayerContainer').style.display = 'none';
+
+        let synthStartTime = 0;
+        let firstAudioReceived = false;
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}/ws/stream`);
+        ws.binaryType = "arraybuffer";
+
+        ws.onopen = () => {
+            synthStartTime = performance.now();
+            const configParams = getConfigParams();
+            ws.send(JSON.stringify({
+                text: textToSynth,
+                ref_audio: selectedVoice,
+                ref_text: exactRefText,
+                config: configParams
+            }));
+            document.getElementById('wsStatus').innerHTML = '🟡 波阵面下发...';
+        };
+
+        ws.onmessage = async (event) => {
+            if (typeof event.data === "string") {
+                const msg = JSON.parse(event.data);
+                if (msg.event === "start") {
+                    document.getElementById('wsStatus').innerHTML = '🔵 流式接管播放器...';
+                    nextPlayTime = audioContext.currentTime + 0.05; 
+                } else if (msg.event === "end") {
+                    // 保留原本显示的延迟（如果有）
+                    const currentStatus = document.getElementById('wsStatus').innerHTML;
+                    const latencySpan = currentStatus.includes('⚡') ? currentStatus.split('🔵 流式接管')[1] || currentStatus.split('🔵 流式播放中')[1] || '' : '';
+                    document.getElementById('wsStatus').innerHTML = '✅ 管线全安全闭合' + latencySpan;
+                    
+                    setTimeout(() => {}, 500);
+                    
+                    document.getElementById('resultPlayerContainer').style.display = 'block';
+                    
+                    // 每次生成完毕重建主波形
+                    if(mainWaveSurfer) { try { mainWaveSurfer.destroy(); } catch(e){} mainWaveSurfer = null; }
+                    const mainBtn = document.getElementById('main-ws-btn');
+                    mainBtn.innerHTML = playIcon;
+                    mainWaveSurfer = WaveSurfer.create({
+                        container: document.getElementById('main-ws-container'),
+                        waveColor: '#93c5fd',
+                        progressColor: '#0284c7',
+                        cursorWidth: 1,
+                        cursorColor: '#0ea5e9',
+                        barWidth: 3,
+                        barGap: 2,
+                        barRadius: 3,
+                        height: 42,
+                        normalize: true
+                    });
+                    mainWaveSurfer.on('play', () => {
+                        mainBtn.classList.add('playing');
+                        mainBtn.innerHTML = pauseIcon;
+                        Object.keys(waveSurfers).forEach(k => { if(waveSurfers[k] && waveSurfers[k].isPlaying()) waveSurfers[k].pause(); });
+                    });
+                    mainWaveSurfer.on('pause', () => { mainBtn.classList.remove('playing'); mainBtn.innerHTML = playIcon; });
+                    mainWaveSurfer.on('finish', () => { mainBtn.classList.remove('playing'); mainBtn.innerHTML = playIcon; });
+                    
+                    // 延迟加载确保 DOM 已就绪
+                    requestAnimationFrame(() => mainWaveSurfer.load(msg.audio_url));
+                    
+                    // Immediately fetch and unshift history
+                    loadHistory();
+                    
+                    btn.disabled = false;
+                    btn.innerHTML = origText;
+                } else if (msg.event === "error") {
+                    alert("🔴 GPU或连接异常: " + msg.message);
+                    btn.disabled = false;
+                    btn.innerHTML = origText;
+                    document.getElementById('wsStatus').innerHTML = '🔴 队列异常熔断...';
+                }
+                return; 
+            }
+
+            if (!firstAudioReceived) {
+                firstAudioReceived = true;
+                const latency = performance.now() - synthStartTime;
+                document.getElementById('wsStatus').innerHTML = `🔵 流式播放中 <span style="color:#f59e0b; margin-left:6px; font-weight:bold; background: rgba(245, 158, 11, 0.1); padding: 2px 6px; border-radius: 4px;">⚡ 首字延迟: ${latency.toFixed(0)} ms</span>`;
+            }
+
+            const rawData = new Float32Array(event.data);
+            const buffer = audioContext.createBuffer(1, rawData.length, 24000);
+            buffer.copyToChannel(rawData, 0);
+
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            
+            if (nextPlayTime < audioContext.currentTime) nextPlayTime = audioContext.currentTime;
+            
+            source.start(nextPlayTime);
+            nextPlayTime += buffer.duration;
+        };
+
+        ws.onerror = (e) => {
+            alert("WS底层中断");
+            btn.disabled = false;
+            btn.innerHTML = origText;
+        };
+    }
+
+    async function deleteHistory(e, id) {
+        e.stopPropagation();
+        if(!confirm(`确认从服务器永久抹除该条合成历史记录？\n这将同时删除生成的 WAV 和 JSON 配置文件。`)) return;
+        try {
+            const encodedId = encodeURIComponent(id);
+            const res = await fetch(`/api/history/delete/${encodedId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if(!res.ok) { alert('删除失败: ' + (data.detail || '未知错误')); return; }
+            loadHistory(); // 重新加载列表或直接从 DOM 移除
+        } catch(err) { alert('删除失败: ' + err.message); }
+    }
+
+    // ===================== 管理音色功能 =====================
+    let manageMode = false;
+    let isEditMode = false;
+    let editOldName = '';
+    const delIcon = '<svg viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>';
+
+    function toggleManageMode() {
+        manageMode = !manageMode;
+        const btn = document.getElementById('manageVoiceBtn');
+        if(manageMode) {
+            btn.innerHTML = '✔ 完成管理';
+            btn.style.background = '#fee2e2'; btn.style.color = '#dc2626';
+            btn.style.boxShadow = 'inset 0 0 0 1px #fca5a5';
+        } else {
+            btn.innerHTML = '⚙️ 管理音色';
+            btn.style.background = ''; btn.style.color = ''; btn.style.boxShadow = '';
+        }
+        loadExamples(0);
+    }
+
+    async function deleteVoice(e, name) {
+        e.stopPropagation();
+        if(!confirm(`确认删除音色「${name}」？\n这将删除该文件夹内所有文件，操作不可恢复！`)) return;
+        try {
+            const res = await fetch(`/api/voice/delete/${encodeURIComponent(name)}`, { method: 'DELETE' });
+            const data = await res.json();
+            if(!res.ok) { alert('删除失败: ' + (data.detail || '未知错误')); return; }
+            if(selectedVoiceName === name) {
+                selectedVoice = null; selectedVoiceName = null;
+                document.getElementById('activeVoiceBadge').innerHTML =
+                    `<span style="display:inline-block;width:6px;height:6px;background:#ef4444;border-radius:50%;box-shadow:0 0 6px #ef4444;"></span> 未选择参考音色`;
+                document.getElementById('activeVoiceBadge').style.cssText = 'background:#fef2f2; color:#b91c1c; box-shadow:inset 0 0 0 1px #fecaca;';
+            }
+            loadExamples(0);
+        } catch(err) { alert('删除失败: ' + err.message); }
+    }
+
+    // ===================== 添加音色模态框 =====================
+    let croppedBlob = null;      // 裁剪后的图片Blob
+    let rawImageFile = null;     // 原始图片文件
+    let trimmedAudioBlob = null; // 剪辑后的音频Blob
+    let rawAudioFile = null;     // 原始音频文件
+    let modalAudioSurfer = null; // 模态框内的WaveSurfer
+
+    // 图片裁剪状态
+    let cropImg = null;
+    let cropScale = 1;
+    let cropBox = { x: 0, y: 0, w: 0, h: 0 };
+    let cropDrag = null;
+
+    function openAddModal(editItem) {
+        // 重置所有状态
+        croppedBlob = null; rawImageFile = null;
+        trimmedAudioBlob = null; rawAudioFile = null;
+        if(modalAudioSurfer) { try { modalAudioSurfer.destroy(); } catch(e){} modalAudioSurfer = null; }
+        cropImg = null; cropDrag = null;
+
+        document.getElementById('voiceNameInput').value = '';
+        document.getElementById('voiceTextInput').value = '';
+        document.getElementById('imageDropText').textContent = '点击或拖入图片';
+        document.getElementById('imageDropZone').className = 'drop-zone';
+        document.getElementById('audioDropText').textContent = '点击或拖入音频';
+        document.getElementById('audioDropZone').className = 'drop-zone';
+        document.getElementById('imageUploadInput').value = '';
+        document.getElementById('audioUploadInput').value = '';
+        document.getElementById('cropAreaWrap').style.display = 'none';
+        document.getElementById('cropActions').style.display = 'none';
+        document.getElementById('cropPreviewWrap').style.display = 'none';
+        document.getElementById('cropPreviewActions').style.display = 'none';
+        document.getElementById('audioTrimArea').style.display = 'none';
+        document.getElementById('trimStatus').textContent = '';
+        document.getElementById('submitVoiceBtn').disabled = false;
+
+        // 区分编辑模式与新增模式
+        if(editItem) {
+            isEditMode = true;
+            editOldName = editItem.name;
+            document.getElementById('modalTitle').textContent = '✏️ 编辑音色';
+            document.getElementById('voiceNameInput').value = editItem.name;
+            document.getElementById('voiceTextInput').value = editItem.text || '';
+            document.getElementById('submitVoiceBtn').innerHTML = '💾 保存修改';
+            // 编辑模式下音频和图片为可选
+            document.getElementById('audioDropText').textContent = '点击替换音频（不选则保留原文件）';
+            document.getElementById('imageDropText').textContent = '点击替换封面（不选则保留原封面）';
+        } else {
+            isEditMode = false;
+            editOldName = '';
+            document.getElementById('modalTitle').textContent = '➕ 添加新音色';
+            document.getElementById('submitVoiceBtn').innerHTML = '💾 保存音色';
+        }
+
+        document.getElementById('addVoiceModal').style.display = 'flex';
+    }
+
+    function closeAddModal() {
+        document.getElementById('addVoiceModal').style.display = 'none';
+    }
+
+    function handleModalOverlayClick(e) {
+        if(e.target === document.getElementById('addVoiceModal')) closeAddModal();
+    }
+
+    // -------- 图片选择与裁剪 --------
+    function onImageSelected(input) {
+        const file = input.files[0];
+        if(!file) return;
+        rawImageFile = file;
+        croppedBlob = null;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                cropImg = img;
+                const wrapW = document.getElementById('cropAreaWrap').offsetWidth || 300;
+                const maxW = Math.max(wrapW - 4, 200);
+                const maxH = 200;
+                const scale = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+                cropScale = scale;
+
+                const canvas = document.getElementById('cropCanvas');
+                canvas.width = Math.round(img.naturalWidth * scale);
+                canvas.height = Math.round(img.naturalHeight * scale);
+
+                // 初始裁剪框：80%居中
+                const margin = 0.1;
+                cropBox = {
+                    x: canvas.width * margin, y: canvas.height * margin,
+                    w: canvas.width * (1 - 2 * margin), h: canvas.height * (1 - 2 * margin)
+                };
+
+                document.getElementById('cropAreaWrap').style.display = 'flex';
+                document.getElementById('cropActions').style.display = 'flex';
+                document.getElementById('cropPreviewWrap').style.display = 'none';
+                document.getElementById('cropPreviewActions').style.display = 'none';
+                renderCropCanvas();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+
+        document.getElementById('imageDropZone').className = 'drop-zone has-file';
+        document.getElementById('imageDropText').textContent = '✔ ' + file.name;
+    }
+
+    function renderCropCanvas() {
+        const canvas = document.getElementById('cropCanvas');
+        const ctx = canvas.getContext('2d');
+        const { x, y, w, h } = cropBox;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // 绘制原图
+        ctx.drawImage(cropImg, 0, 0, canvas.width, canvas.height);
+        // 暗化遮罩
+        ctx.fillStyle = 'rgba(0,0,0,0.48)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 裁剪区亮化
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+        ctx.drawImage(cropImg, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        // 裁剪框边线
+        ctx.strokeStyle = '#0ea5e9'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+        ctx.strokeRect(x, y, w, h);
+        // 四角手柄
+        const hs = 7;
+        [[x,y],[x+w,y],[x,y+h],[x+w,y+h],[x+w/2,y],[x+w/2,y+h],[x,y+h/2],[x+w,y+h/2]].forEach(([cx,cy]) => {
+            ctx.fillStyle = '#fff'; ctx.fillRect(cx-hs/2, cy-hs/2, hs, hs);
+            ctx.strokeStyle = '#0ea5e9'; ctx.lineWidth = 1;
+            ctx.strokeRect(cx-hs/2, cy-hs/2, hs, hs);
+        });
+    }
+
+    function getCropHandle(mx, my) {
+        const { x, y, w, h } = cropBox;
+        const hs = 10;
+        const handles = {
+            'nw':[x,y], 'ne':[x+w,y], 'sw':[x,y+h], 'se':[x+w,y+h],
+            'n':[x+w/2,y], 's':[x+w/2,y+h], 'w':[x,y+h/2], 'e':[x+w,y+h/2]
+        };
+        for(const [type,[hx,hy]] of Object.entries(handles)) {
+            if(Math.abs(mx-hx)<=hs && Math.abs(my-hy)<=hs) return type;
+        }
+        if(mx>=x && mx<=x+w && my>=y && my<=y+h) return 'move';
+        return null;
+    }
+
+    function cropPosFromEvent(e) {
+        const rect = document.getElementById('cropCanvas').getBoundingClientRect();
+        return { mx: e.clientX - rect.left, my: e.clientY - rect.top };
+    }
+
+    function cropMouseDown(e) {
+        const {mx, my} = cropPosFromEvent(e);
+        const type = getCropHandle(mx, my);
+        if(type) cropDrag = { type, startX: mx, startY: my, orig: {...cropBox} };
+    }
+    function cropTouchStart(e) { e.preventDefault(); cropMouseDown(e.touches[0]); }
+    function cropTouchMove(e) { e.preventDefault(); cropMouseMove(e.touches[0]); }
+
+    function cropMouseMove(e) {
+        if(!cropDrag || !cropImg) return;
+        const {mx, my} = cropPosFromEvent(e);
+        const dx = mx - cropDrag.startX, dy = my - cropDrag.startY;
+        const o = cropDrag.orig;
+        const canvas = document.getElementById('cropCanvas');
+        let {x,y,w,h} = o;
+
+        if(cropDrag.type==='move') {
+            x = Math.max(0, Math.min(canvas.width-w, o.x+dx));
+            y = Math.max(0, Math.min(canvas.height-h, o.y+dy));
+        } else {
+            if(cropDrag.type.includes('e')) w = Math.max(20, Math.min(canvas.width-o.x, o.w+dx));
+            if(cropDrag.type.includes('s')) h = Math.max(20, Math.min(canvas.height-o.y, o.h+dy));
+            if(cropDrag.type.includes('w')) { const nw=Math.max(20,o.w-dx); x=o.x+o.w-nw; w=nw; }
+            if(cropDrag.type.includes('n')) { const nh=Math.max(20,o.h-dy); y=o.y+o.h-nh; h=nh; }
+        }
+        cropBox = {x,y,w,h};
+        renderCropCanvas();
+    }
+
+    function cropMouseUp() { cropDrag = null; }
+
+    function resetCrop() {
+        const canvas = document.getElementById('cropCanvas');
+        const m = 0.1;
+        cropBox = { x:canvas.width*m, y:canvas.height*m, w:canvas.width*(1-2*m), h:canvas.height*(1-2*m) };
+        renderCropCanvas();
+    }
+
+    async function confirmCrop() {
+        if(!cropImg) return;
+        const offCanvas = document.createElement('canvas');
+        // 输出尺寸（原始像素坐标系）
+        offCanvas.width = Math.round(cropBox.w / cropScale);
+        offCanvas.height = Math.round(cropBox.h / cropScale);
+        const ctx = offCanvas.getContext('2d');
+        ctx.drawImage(cropImg,
+            cropBox.x/cropScale, cropBox.y/cropScale, cropBox.w/cropScale, cropBox.h/cropScale,
+            0, 0, offCanvas.width, offCanvas.height
+        );
+        croppedBlob = await new Promise(resolve => offCanvas.toBlob(resolve, 'image/jpeg', 0.92));
+
+        document.getElementById('cropPreviewImg').src = URL.createObjectURL(croppedBlob);
+        document.getElementById('cropAreaWrap').style.display = 'none';
+        document.getElementById('cropActions').style.display = 'none';
+        document.getElementById('cropPreviewWrap').style.display = 'flex';
+        document.getElementById('cropPreviewActions').style.display = 'block';
+    }
+
+    function reCrop() {
+        croppedBlob = null;
+        document.getElementById('cropPreviewWrap').style.display = 'none';
+        document.getElementById('cropPreviewActions').style.display = 'none';
+        document.getElementById('cropAreaWrap').style.display = 'flex';
+        document.getElementById('cropActions').style.display = 'flex';
+        renderCropCanvas();
+    }
+
+    // -------- 音频选择与剪辑 --------
+    function onAudioSelected(input) {
+        const file = input.files[0];
+        if(!file) return;
+        rawAudioFile = file;
+        trimmedAudioBlob = null;
+
+        document.getElementById('audioDropZone').className = 'drop-zone has-file';
+        document.getElementById('audioDropText').textContent = '✔ ' + file.name;
+        document.getElementById('audioTrimArea').style.display = 'block';
+        document.getElementById('trimStatus').textContent = '';
+
+        if(modalAudioSurfer) { try { modalAudioSurfer.destroy(); } catch(e){} modalAudioSurfer = null; }
+
+        const url = URL.createObjectURL(file);
+        modalAudioSurfer = WaveSurfer.create({
+            container: document.getElementById('modalAudioWave'),
+            waveColor: '#93c5fd', progressColor: '#0284c7',
+            barWidth: 2, barGap: 1, barRadius: 3, height: 38, url,
+            normalize: true
+        });
+        const playBtn = document.getElementById('modalAudioPlayBtn');
+        modalAudioSurfer.on('ready', () => {
+            const dur = modalAudioSurfer.getDuration();
+            document.getElementById('audioTrimEnd').value = dur.toFixed(2);
+            document.getElementById('audioTrimStart').value = '0.00';
+            
+            // overlay 保持在容器 DOM 中，不进入 Shadow DOM
+            document.getElementById('waveOverlay').style.display = 'block';
+            initTrimDrag();
+            updateTrimUI();
+        });
+        modalAudioSurfer.on('play', () => {
+            playBtn.innerHTML = pauseIcon; playBtn.classList.add('playing');
+        });
+        modalAudioSurfer.on('pause', () => {
+            playBtn.innerHTML = playIcon; playBtn.classList.remove('playing');
+        });
+        modalAudioSurfer.on('finish', () => {
+            playBtn.innerHTML = playIcon; playBtn.classList.remove('playing');
+        });
+    }
+
+    function toggleModalAudio() {
+        if(modalAudioSurfer) modalAudioSurfer.playPause();
+    }
+
+    // Float32 PCM → WAV Blob
+    function float32ToWav(samples, sampleRate) {
+        const buf = new ArrayBuffer(44 + samples.length * 2);
+        const view = new DataView(buf);
+        function ws(o, s) { for(let i=0;i<s.length;i++) view.setUint8(o+i, s.charCodeAt(i)); }
+        ws(0,'RIFF'); view.setUint32(4, 36+samples.length*2, true);
+        ws(8,'WAVE'); ws(12,'fmt ');
+        view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+        view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*2,true);
+        view.setUint16(32,2,true); view.setUint16(34,16,true);
+        ws(36,'data'); view.setUint32(40,samples.length*2,true);
+        let off=44;
+        for(let i=0;i<samples.length;i++) {
+            const s=Math.max(-1,Math.min(1,samples[i]));
+            view.setInt16(off, s<0?s*0x8000:s*0x7FFF, true); off+=2;
+        }
+        return new Blob([buf], {type:'audio/wav'});
+    }
+
+    // 滚轮缩放已移除（与外部 overlay 有根本性冲突，改用更高的波形图代替）
+
+    // -------- 波形图拖拽裁剪逻辑 --------
+    let trimDragging = null;
+
+    function initTrimDrag() {
+        const hL = document.getElementById('trimHandleLeft');
+        const hR = document.getElementById('trimHandleRight');
+        if(!hL || !hR) { console.error('trim handles not found', hL, hR); return; }
+
+        function onMove(e) {
+            if (!trimDragging) return;
+            e.preventDefault();
+            // 使用容器（而非 Shadow DOM wrapper）的坐标来计算
+            const container = document.getElementById('waveContainer');
+            const rect = container.getBoundingClientRect();
+            const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            let x = clientX - rect.left;
+            x = Math.max(0, Math.min(x, rect.width));
+            
+            const dur = modalAudioSurfer.getDuration();
+            const time = (x / rect.width) * dur;
+
+            if (trimDragging === 'left') {
+                const maxVal = parseFloat(document.getElementById('audioTrimEnd').value) - 0.05;
+                document.getElementById('audioTrimStart').value = Math.max(0, Math.min(time, maxVal)).toFixed(2);
+            } else {
+                const minVal = parseFloat(document.getElementById('audioTrimStart').value) + 0.05;
+                document.getElementById('audioTrimEnd').value = Math.min(dur, Math.max(time, minVal)).toFixed(2);
+            }
+            updateTrimUI();
+        }
+
+        function onUp() {
+            trimDragging = null;
+            document.body.style.cursor = '';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('touchend', onUp);
+        }
+
+        function attachHandle(el, side) {
+            el.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                trimDragging = side;
+                document.body.style.cursor = 'ew-resize';
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
+            el.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                trimDragging = side;
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', onUp);
+            });
+        }
+
+        attachHandle(hL, 'left');
+        attachHandle(hR, 'right');
+    }
+
+    function updateTrimUI() {
+        const dur = modalAudioSurfer ? modalAudioSurfer.getDuration() : 0;
+        if (!dur || dur <= 0) return;
+
+        const start = parseFloat(document.getElementById('audioTrimStart').value) || 0;
+        const end = parseFloat(document.getElementById('audioTrimEnd').value) || dur;
+        const sPercent = (start / dur) * 100;
+        const ePercent = ((dur - end) / dur) * 100;
+
+        const maskL = document.getElementById('trimMaskLeft');
+        const maskR = document.getElementById('trimMaskRight');
+        const hLeft = document.getElementById('trimHandleLeft');
+        const hRight = document.getElementById('trimHandleRight');
+        const timeDisplay = document.getElementById('trimTimeDisplay');
+
+        if(maskL) maskL.style.width = sPercent + '%';
+        if(maskR) maskR.style.width = ePercent + '%';
+        if(hLeft) hLeft.style.left = 'calc(' + sPercent + '% - 3px)';
+        if(hRight) hRight.style.right = 'calc(' + ePercent + '% - 3px)';
+        if(timeDisplay) timeDisplay.textContent = start.toFixed(2) + 's - ' + end.toFixed(2) + 's';
+    }
+
+    async function doTrimAudio() {
+        if(!rawAudioFile) return;
+        const start = parseFloat(document.getElementById('audioTrimStart').value) || 0;
+        const end = parseFloat(document.getElementById('audioTrimEnd').value) || 0;
+        if(start >= end) { alert('起始时间必须小于结束时间'); return; }
+
+        document.getElementById('trimStatus').textContent = '正在剪辑...';
+        try {
+            const arrayBuf = await rawAudioFile.arrayBuffer();
+            const decodeCtx = new AudioContext();
+            const audioBuffer = await decodeCtx.decodeAudioData(arrayBuf);
+            await decodeCtx.close();
+
+            const sr = audioBuffer.sampleRate;
+            const startSample = Math.round(start * sr);
+            const endSample = Math.min(Math.round(end * sr), audioBuffer.length);
+            const length = endSample - startSample;
+            const channelData = audioBuffer.getChannelData(0).subarray(startSample, endSample);
+
+            trimmedAudioBlob = float32ToWav(channelData, sr);
+
+            // 更新波形预览
+            if(modalAudioSurfer) { try { modalAudioSurfer.destroy(); } catch(e){} }
+            modalAudioSurfer = WaveSurfer.create({
+                container: document.getElementById('modalAudioWave'),
+                waveColor: '#86efac', progressColor: '#16a34a',
+                barWidth: 2, barGap: 1, barRadius: 3, height: 38,
+                blob: trimmedAudioBlob,
+                normalize: true
+            });
+            const playBtn = document.getElementById('modalAudioPlayBtn');
+            modalAudioSurfer.on('play', () => { playBtn.innerHTML=pauseIcon; playBtn.classList.add('playing'); });
+            modalAudioSurfer.on('pause', () => { playBtn.innerHTML=playIcon; playBtn.classList.remove('playing'); });
+            modalAudioSurfer.on('finish', () => { playBtn.innerHTML=playIcon; playBtn.classList.remove('playing'); });
+
+            document.getElementById('trimStatus').textContent =
+                `✅ 已剪辑：${start.toFixed(1)}s → ${end.toFixed(1)}s（时长 ${(end-start).toFixed(1)}s）`;
+        } catch(err) {
+            document.getElementById('trimStatus').textContent = '❌ 剪辑失败: ' + err.message;
+        }
+    }
+
+    // -------- 提交保存 --------
+    async function submitAddVoice() {
+        const name = document.getElementById('voiceNameInput').value.trim();
+        if(!name) { alert('请输入音色名称'); document.getElementById('voiceNameInput').focus(); return; }
+        // 新增模式下音频为必选；编辑模式下可选
+        if(!isEditMode && !rawAudioFile && !trimmedAudioBlob) { alert('请上传参考音频文件'); return; }
+
+        const btn = document.getElementById('submitVoiceBtn');
+        btn.disabled = true; btn.innerHTML = '<span class="loading-spinner"></span>保存中...';
+
+        try {
+            const fd = new FormData();
+
+            // 图片：裁剪优先，否则原文件
+            if(croppedBlob) {
+                fd.append('image', croppedBlob, `${name}.jpg`);
+            } else if(rawImageFile) {
+                fd.append('image', rawImageFile, rawImageFile.name);
+            }
+
+            // 音频：剪辑版优先，否则原文件
+            if(trimmedAudioBlob) {
+                fd.append('audio', trimmedAudioBlob, `${name}.wav`);
+            } else if(rawAudioFile) {
+                fd.append('audio', rawAudioFile, rawAudioFile.name);
+            }
+
+            // 字幕文本
+            const text = document.getElementById('voiceTextInput').value.trim();
+            fd.append('text', text);
+
+            let apiUrl, successMsg;
+            if(isEditMode) {
+                fd.append('old_name', editOldName);
+                fd.append('new_name', name);
+                apiUrl = '/api/voice/edit';
+                successMsg = `「${name}」已成功更新！`;
+            } else {
+                fd.append('name', name);
+                apiUrl = '/api/voice/add';
+                successMsg = `「${name}」已成功添加！`;
+            }
+
+            const res = await fetch(apiUrl, { method: 'POST', body: fd });
+            const data = await res.json();
+            if(!res.ok) { alert((isEditMode ? '编辑' : '添加') + '失败：' + (data.detail || '未知错误')); return; }
+
+            closeAddModal();
+            loadExamples(0);
+            // 短暂提示成功
+            const badge = document.getElementById('activeVoiceBadge');
+            badge.innerHTML = `<span style="display:inline-block;width:6px;height:6px;background:#10b981;border-radius:50%;"></span> ${successMsg}`;
+            setTimeout(() => loadExamples(0), 1000);
+        } catch(err) {
+            alert('网络错误: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = isEditMode ? '💾 保存修改' : '💾 保存音色';
+            isEditMode = false;
+            editOldName = '';
+        }
+    }
+
+    async function openDisclaimer() {
+        try {
+            const res = await fetch('/static/免责声明.txt');
+            const text = await res.text();
+            document.getElementById('disclaimerContent').textContent = text;
+            document.getElementById('disclaimerModal').style.display = 'flex';
+        } catch (err) {
+            alert('读取免责声明失败：' + err.message);
+        }
+    }
+
+    function closeDisclaimer() {
+        document.getElementById('disclaimerModal').style.display = 'none';
+    }
+
+    window.onload = () => {
+        loadExamples();
+        loadHistory();
+    };
+</script>
+
+<!-- ===== 添加音色模态框 ===== -->
+<div id="addVoiceModal" class="modal-overlay" style="display:none" onclick="handleModalOverlayClick(event)">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3 id="modalTitle">➕ 添加新音色</h3>
+      <button class="modal-close" onclick="closeAddModal()">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="#64748b" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <!-- 音色名称 -->
+      <div class="form-group">
+        <div class="form-label">音色名称 <span style="color:#ef4444">*</span></div>
+        <input type="text" id="voiceNameInput" class="form-input" placeholder="例如：温柔女声、小明..." />
+      </div>
+
+      <!-- 封面图片 + 参考音频 -->
+      <div class="modal-media-row">
+        <!-- 左：封面图片 -->
+        <div class="media-col">
+          <div class="form-label">封面图片 <span class="opt">(可选)</span></div>
+          <div id="imageDropZone" class="drop-zone" onclick="document.getElementById('imageUploadInput').click()">
+            <svg viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 20M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="imageDropText">点击或拖入图片</span>
+          </div>
+          <input type="file" id="imageUploadInput" accept="image/*" style="display:none" onchange="onImageSelected(this)" />
+
+          <!-- 裁剪区 -->
+          <div id="cropAreaWrap" class="crop-area-wrap" style="display:none">
+            <canvas id="cropCanvas"
+              onmousedown="cropMouseDown(event)" onmousemove="cropMouseMove(event)"
+              onmouseup="cropMouseUp(event)" onmouseleave="cropMouseUp(event)"
+              ontouchstart="cropTouchStart(event)" ontouchmove="cropTouchMove(event)" ontouchend="cropMouseUp(event)"
+            ></canvas>
+          </div>
+          <div id="cropActions" style="display:none; gap:6px; margin-top:4px;">
+            <button class="btn-primary-small" onclick="confirmCrop()" style="flex:1; justify-content:center;">✔ 完成裁剪</button>
+            <button class="btn-small" onclick="resetCrop()" style="justify-content:center;">重置</button>
+          </div>
+
+          <!-- 裁剪后预览 -->
+          <div id="cropPreviewWrap" class="crop-preview-wrap" style="display:none">
+            <img id="cropPreviewImg" />
+          </div>
+          <div id="cropPreviewActions" style="display:none; margin-top:4px;">
+            <button class="btn-small" onclick="reCrop()" style="width:100%; justify-content:center;">重新裁剪</button>
+          </div>
+        </div>
+
+        <!-- 右：参考音频 -->
+        <div class="media-col">
+          <div class="form-label">参考音频 <span style="color:#ef4444">*</span></div>
+          <div id="audioDropZone" class="drop-zone" onclick="document.getElementById('audioUploadInput').click()">
+            <svg viewBox="0 0 24 24"><path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="audioDropText">点击或拖入音频</span>
+          </div>
+          <input type="file" id="audioUploadInput" accept="audio/*" style="display:none" onchange="onAudioSelected(this)" />
+
+          <!-- 音频预览和剪辑 -->
+          <div id="audioTrimArea" style="display:none">
+            <div class="audio-wave-wrap">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                <button id="modalAudioPlayBtn" class="wave-btn" onclick="toggleModalAudio()">
+                  <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+                <div class="wave-container-wrapper" id="waveContainer" style="flex:1;">
+                  <div id="modalAudioWave" style="height:64px;"></div>
+                  <!-- 裁剪交互层：保持在普通 DOM 中叠加在波形之上 -->
+                  <div id="waveOverlay" class="wave-interaction-overlay" style="display:none">
+                    <div id="trimMaskLeft" class="wave-trim-mask left"></div>
+                    <div id="trimMaskRight" class="wave-trim-mask right"></div>
+                    <div id="trimHandleLeft" class="trim-handle" style="left:0;">
+                         <div class="handle-grip"><span></span><span></span><span></span></div>
+                    </div>
+                    <div id="trimHandleRight" class="trim-handle" style="right:0;">
+                         <div class="handle-grip"><span></span><span></span><span></span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <input type="hidden" id="audioTrimStart" value="0.00" />
+            <input type="hidden" id="audioTrimEnd" value="0.00" />
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div style="font-size: 0.75rem; color: #64748b; font-weight: 500;">
+                  💡 拖动两侧蓝色手柄修剪音频范围
+                </div>
+                <div id="trimTimeDisplay" style="font-size: 0.75rem; color: var(--primary); font-family: monospace; font-weight: 600;">
+                  0.00s - 0.00s
+                </div>
+            </div>
+            <button class="btn-small" style="width:100%; justify-content:center; padding: 12px; font-weight: 600;" onclick="doTrimAudio()">✂️ 确认裁剪并预览</button>
+            <div id="trimStatus" class="trim-status"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 字幕文本 -->
+      <div class="form-group">
+        <div class="form-label">字幕文字 <span class="opt">(可选，也可添加后再编辑)</span></div>
+        <textarea id="voiceTextInput" class="form-textarea" placeholder="输入该音频中说的原文..."></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-small" onclick="closeAddModal()" style="padding: 8px 20px;">取消</button>
+      <button class="btn-main" id="submitVoiceBtn" onclick="submitAddVoice()">💾 保存音色</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 免责声明模态框 ===== -->
+<div id="disclaimerModal" class="modal-overlay" style="display:none" onclick="closeDisclaimer()">
+  <div class="modal-card" style="max-width: 600px; width: 90%;" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>⚖️ 免责声明</h3>
+      <button class="modal-close" onclick="closeDisclaimer()">
+        <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="#64748b" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="background: rgba(15, 23, 42, 0.03); border-radius: 8px; padding: 20px; font-size: 0.9rem; line-height: 1.8; color: #475569; white-space: pre-wrap; max-height: 400px; overflow-y: auto; font-family: 'PingFang SC', sans-serif;" id="disclaimerContent">
+      正在加载声明内容...
+    </div>
+    <div class="modal-footer">
+      <button class="btn-main" onclick="closeDisclaimer()" style="width: 100%; justify-content: center;">我已阅读并知晓</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
