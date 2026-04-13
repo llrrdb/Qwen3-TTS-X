@@ -1,6 +1,7 @@
 # ======= 核心模型权重与二进制文件 (体积巨大，严禁提交) =======
 model-base/
-qwen3_tts_gguf/inference/bin/
+qwen3_tts_gguf/inference/bin/*
+!qwen3_tts_gguf/inference/bin/*.txt
 
 # ======= 运行输出与历史记录 =======
 output/
@@ -34,7 +35,6 @@ Thumbs.db
 Inference-Base.py
 41-Inference-Custom.py
 42-Inference-Design.py
-qwen3_tts_gguf
 
 # 排除例外：保留关键配置
 !tokenizer.json
